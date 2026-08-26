@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/"
+title = "Fleet Key Control"
+description = "A mobile-first fleet garage operations app for tracking vehicle keys, transferring custody with QR verification, managing job cards, and reporting missing keys."
+version = "1.0.0"
+id = "artifacts/fleet-key-control"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/" ]
+localPort = 19503
+
+[services.development]
+run = "pnpm --filter @workspace/fleet-key-control run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/fleet-key-control", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/fleet-key-control", "run", "serve" ]
+
+[services.env]
+PORT = "19503"
+BASE_PATH = "/"

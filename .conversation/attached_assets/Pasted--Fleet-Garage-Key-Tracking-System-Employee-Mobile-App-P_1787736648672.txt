@@ -1,0 +1,1089 @@
+# Fleet Garage Key Tracking System — Employee Mobile App Prototype
+
+## 1. Objective
+
+Build a **high-fidelity, mobile-first employee application prototype** for a fleet garage where every vehicle key is digitally tracked using QR codes.
+
+The primary objective is to **eliminate lost/unaccounted-for keys by ensuring that every key always has one clearly identified custodian**.
+
+The application will be used dozens of times a day by **mechanics, supervisors, service advisors, and other garage employees**, so the workflow must be extremely fast, intuitive, and require minimal taps.
+
+The design should feel like a modern enterprise application similar to **Uber Fleet, Microsoft enterprise apps, or other professional operations tools**.
+
+### Design principles
+
+* Mobile-first
+* Optimized for one-handed use
+* Very fast workflows
+* Minimal number of taps
+* Large touch-friendly buttons
+* Clean white background
+* Blue as the primary action color
+* Rounded cards
+* Minimal icons
+* Clear typography
+* Strong visual hierarchy
+* Enterprise/professional appearance
+* Clear success, error, warning, and pending states
+* Every important action should provide immediate visual feedback
+* Do not leave the user on a screen with no visible result after an action
+
+The prototype should include **realistic navigation and interactive state changes between screens**, not just static wireframes.
+
+---
+
+# 2. Core Key Ownership Logic
+
+Every vehicle key must always have one of these states:
+
+1. Assigned to an employee
+2. Transfer pending
+3. Transfer completed
+4. Transfer rejected
+5. Transfer expired
+6. Missing / not physically held by the custodian
+
+### Important ownership rule
+
+The **current custodian remains the owner until the receiver explicitly accepts the transfer**.
+
+When a sender initiates a transfer:
+
+* Sender selects the employee who should receive the key.
+* Sender becomes the "Transfer Initiator".
+* Receiver receives an incoming-transfer notification.
+* Receiver must physically scan the vehicle's QR code.
+* Receiver can then accept or reject the transfer.
+* Ownership changes **only after the receiver accepts**.
+* If receiver rejects, sender remains custodian.
+* If receiver does not complete the process within 2 minutes, the transfer expires and sender remains custodian.
+* The sender must always be able to see the current transfer status.
+
+---
+
+# 3. Employee Dashboard / Home
+
+Create a Home dashboard with:
+
+## My Keys
+
+Display a prominent card:
+
+**My Keys**
+`Number of keys currently assigned to me`
+
+## Incoming Transfers
+
+Display:
+
+**Incoming Transfers**
+`Number of transfers awaiting my action`
+
+## Transfers Completed Today
+
+Display:
+
+**Transfers Completed Today**
+`Number of successfully completed transfers today`
+
+## Primary Actions
+
+Include large, easy-to-tap actions for:
+
+* Scan QR
+* My Keys
+* Send Key
+* Bulk Send
+
+---
+
+# 4. Bottom Navigation
+
+The application must have persistent bottom navigation:
+
+1. **Home**
+2. **Scanner**
+3. **My Keys**
+4. **Notifications**
+5. **Profile**
+
+Use simple icons and clear labels.
+
+The currently selected section should be visually highlighted.
+
+---
+
+# 5. QR Scanner
+
+The Scanner page should contain:
+
+### Primary functionality
+
+A large QR scanner view that allows employees to scan the vehicle's QR code.
+
+Display clear scanning instructions such as:
+
+**Scan Vehicle QR Code**
+
+### Search Key fallback
+
+Because QR scanning may occasionally fail, add:
+
+**Search Key**
+
+This allows the employee to manually search for a vehicle/key using:
+
+* Vehicle number
+* Key ID, if applicable
+
+Provide a searchable result list.
+
+This fallback must lead into the same vehicle/key workflow as QR scanning.
+
+---
+
+# 6. VERY IMPORTANT — Updated Transfer Flow
+
+The transfer workflow has been intentionally changed.
+
+### Sender initiates the transfer
+
+The **sender does NOT scan the QR code to complete the transfer**.
+
+Instead:
+
+1. Sender opens **My Keys**
+2. Sender selects the vehicle/key
+3. Sender clicks **Send Key**
+4. Sender selects the receiving employee
+5. Sender clicks **Transfer Key**
+6. The transfer becomes **Pending**
+7. Receiver receives an **Incoming Key Transfer** notification
+8. Receiver opens the notification
+9. Receiver is automatically taken to the **QR Scanner**
+10. Receiver scans the QR code on the physical vehicle key
+11. The system identifies the pending transfer
+12. Receiver is shown the transfer details
+13. Receiver chooses **Accept** or **Reject**
+14. Ownership changes only when receiver clicks **Accept**
+
+This is critical: **the QR scan is performed by the receiver, not the sender.**
+
+---
+
+# 7. Vehicle / Key Detail Screen
+
+When a current custodian selects a key, display:
+
+* Vehicle Number
+* Current Custodian
+* Current Department
+* Key status
+* Job Card status
+
+Display exactly these four primary actions:
+
+### 1. Send Key
+
+### 2. Job Card Open
+
+### 3. Job Card Close
+
+### 4. I Don't Have the Key
+
+Do not add unnecessary actions to this screen.
+
+---
+
+# 8. Send Key — Single Key
+
+Only the **current custodian** can initiate a transfer.
+
+When the user selects **Send Key**, display:
+
+### Select Employee
+
+Provide a searchable employee list.
+
+Each employee card should display:
+
+* Employee Name
+* Department
+* Role, if available
+* Current number of assigned keys, if useful
+
+Allow the sender to select one employee.
+
+Then show:
+
+**Transfer Key**
+
+---
+
+# 9. Transfer Pending Screen
+
+After clicking **Transfer Key**, do NOT leave the page blank or simply return to the previous screen.
+
+Immediately show a dedicated pending state.
+
+Display:
+
+### Waiting For Acceptance
+
+**Vehicle Number:** MH XX XXXX
+**Sending To:** Employee Name
+**Department:** Department Name
+
+Display a prominent:
+
+### 2:00 Countdown Timer
+
+The timer should visibly count down:
+
+`01:59 → 01:58 → ... → 00:00`
+
+Also display:
+
+**Waiting for receiver to scan the QR code and accept the transfer.**
+
+Provide:
+
+### Cancel Transfer
+
+If the sender cancels:
+
+* Transfer is cancelled
+* Sender remains custodian
+* Receiver should no longer be able to accept the transfer
+* Show a confirmation message
+
+---
+
+# 10. Transfer Success State
+
+When the receiver accepts the transfer:
+
+The sender's screen must automatically update to:
+
+# Transfer Complete
+
+Display:
+
+* Vehicle Number
+* Previous Custodian
+* New Custodian
+* Time of transfer
+* Department
+
+Show a prominent success indicator.
+
+Example:
+
+**Transfer Complete**
+**The key has been successfully transferred to Rahul Sharma.**
+
+The key should immediately disappear from the sender's **My Keys** list.
+
+The receiver's **My Keys** count should increase.
+
+---
+
+# 11. Transfer Rejected State
+
+If the receiver rejects the transfer:
+
+The sender must see:
+
+# Transfer Unsuccessful
+
+Display:
+
+* Vehicle Number
+* Receiver
+* Time
+* Reason/status: Rejected
+
+Example:
+
+**Transfer Unsuccessful**
+**Rahul Sharma rejected the key transfer.**
+
+The sender remains the custodian.
+
+The key remains in the sender's **My Keys**.
+
+---
+
+# 12. Transfer Expired State
+
+If the receiver does not scan and respond within 2 minutes:
+
+Automatically expire the transfer.
+
+Sender should see:
+
+# Transfer Expired
+
+Display:
+
+**The transfer expired because the receiver did not respond within 2 minutes.**
+
+Sender remains the custodian.
+
+The key remains in **My Keys**.
+
+---
+
+# 13. Receiver — Incoming Transfer
+
+The receiver receives a notification:
+
+### Incoming Key Transfer
+
+Display:
+
+* Vehicle Number
+* Sender Name
+* Sender Department
+* Transfer time
+
+The notification should clearly indicate that action is required.
+
+### Important interaction
+
+When the receiver clicks the **Incoming Key Transfer notification**, immediately redirect them to the **QR Scanner screen**.
+
+Do not take them directly to an Accept/Reject screen.
+
+The intended process is:
+
+**Notification → QR Scanner → Scan Key → Transfer Details → Accept / Reject**
+
+---
+
+# 14. Receiver QR Scan — Pending Transfer
+
+After the receiver scans the QR code, show:
+
+### Incoming Key Transfer
+
+Display:
+
+* Vehicle Number
+* Sender
+* Sender Department
+* Current Custodian
+* Transfer initiated time
+* Transfer expiration countdown
+
+Then show exactly two primary actions:
+
+### Accept
+
+### Reject
+
+---
+
+# 15. Accept Transfer
+
+When receiver clicks **Accept**:
+
+Immediately complete the transfer.
+
+Display:
+
+# Transfer Complete
+
+Example:
+
+**Transfer Complete**
+**You are now the custodian of vehicle MH XX XXXX.**
+
+Update:
+
+* Current custodian
+* My Keys count
+* Sender's My Keys
+* Transfer history
+* Notifications
+
+The sender should also receive a notification:
+
+**Transfer Accepted**
+
+---
+
+# 16. Reject Transfer
+
+When receiver clicks **Reject**:
+
+Display a confirmation before rejection if useful.
+
+After rejection:
+
+Display:
+
+# Transfer Unsuccessful
+
+Example:
+
+**Transfer Unsuccessful**
+**You rejected the transfer for vehicle MH XX XXXX.**
+
+Notify the sender:
+
+**Transfer Rejected**
+
+Sender remains custodian.
+
+---
+
+# 17. Job Card Open
+
+**Job Card Open** is available only when the job card is currently closed.
+
+When selected, show confirmation:
+
+### Open Job Card
+
+**Vehicle:** MH XX XXXX
+**Department:** Department Name
+
+Button:
+
+**Open Job Card**
+
+After confirmation:
+
+* Vehicle status becomes **Inside Garage**
+* Job Card status becomes **Open**
+* Show a success state
+
+Example:
+
+**Job Card Opened Successfully**
+
+The new job card status should be reflected throughout the application.
+
+---
+
+# 18. Job Card Close
+
+Only the **current custodian** can close the job card.
+
+Show confirmation screen:
+
+### Close Job Card
+
+Display:
+
+* Vehicle Number
+* Repair Duration
+* Total Transfers
+
+Button:
+
+**Close Job Card**
+
+After confirmation:
+
+* Vehicle status becomes **Outside Garage**
+* Job Card status becomes **Closed**
+* Vehicle is removed from My Keys
+* Show success state
+
+### Success message
+
+# Vehicle Delivered Successfully
+
+The key should no longer appear in the employee's **My Keys** list.
+
+---
+
+# 19. I Don't Have the Key
+
+Add a fourth option on the vehicle/key detail page:
+
+### I Don't Have the Key
+
+When clicked:
+
+1. Explain that the user is reporting that the assigned key is missing/unavailable.
+2. Redirect the user to a **Google Form** for the missing-key report.
+
+Use a configurable placeholder for the Google Form URL:
+
+`[MISSING_KEY_GOOGLE_FORM_URL]`
+
+Do not hard-code a fake URL.
+
+The missing-key report should capture relevant information such as:
+
+* Employee
+* Department
+* Vehicle Number
+* Key ID
+* Date/time
+* Last known location
+* Notes/reason
+* Any other relevant incident information
+
+---
+
+# 20. Bulk Send Keys
+
+Add a **Bulk Send** option.
+
+This should allow an employee who currently holds multiple keys to transfer multiple keys to the same employee in one workflow.
+
+### Bulk Send Flow
+
+1. Tap **Bulk Send**
+2. Display all keys currently assigned to the employee
+3. Allow multi-select using checkboxes/cards
+4. Display selected count
+5. Tap **Continue**
+6. Select receiving employee
+7. Display a transfer summary
+
+Example:
+
+**5 Keys Selected**
+**Sending To: Amit Patel**
+
+Show all selected vehicle numbers.
+
+Then:
+
+**Send Keys**
+
+After confirmation:
+
+* Create a bulk transfer request
+* Show a clear **Waiting For Acceptance** state
+* Show the 2-minute countdown
+* Receiver receives a bulk incoming-transfer notification
+* Receiver scans QR codes for the selected keys
+
+### Bulk transfer acceptance
+
+Design this so the receiver can process the bulk request efficiently.
+
+The receiver should be able to see:
+
+**5 Keys Pending**
+
+and scan each vehicle/key QR code.
+
+For each successfully scanned key, show:
+
+**Verified ✓**
+
+After verification, allow:
+
+**Accept All**
+
+or allow individual acceptance/rejection where necessary.
+
+Ownership should change only for the keys that the receiver successfully accepts.
+
+Make the bulk flow fast enough for operational use.
+
+---
+
+# 21. My Keys
+
+Display every vehicle/key currently assigned to the employee.
+
+Include:
+
+### Search Bar
+
+Allow search by:
+
+* Vehicle Number
+* Key ID, if applicable
+
+### Sort
+
+Provide:
+
+* Newest
+* Oldest
+
+Display:
+
+**Total Keys: X**
+
+Each key card should include:
+
+* Vehicle Number
+* Department
+* Date & time received
+* Current Job Card Status
+* Current vehicle status
+
+Buttons:
+
+**Transfer**
+**History**
+
+Tapping a vehicle opens its detailed key screen.
+
+---
+
+# 22. Key History
+
+When the user clicks **History**, display the full audit trail for that key.
+
+Include:
+
+* Vehicle Number
+* Current custodian
+* Previous custodians
+* Transfer timestamps
+* Sender
+* Receiver
+* Accepted / Rejected / Expired
+* Job card opened
+* Job card closed
+* Missing-key reports
+* Relevant timestamps
+
+Use a simple vertical timeline.
+
+The audit trail should make it easy to understand **who had the key and when**.
+
+---
+
+# 23. Notifications
+
+Create a notification center.
+
+Notification types include:
+
+### Incoming Transfer
+
+Requires action.
+
+### Transfer Accepted
+
+Inform sender that the receiver accepted the transfer.
+
+### Transfer Rejected
+
+Inform sender that the receiver rejected the transfer.
+
+### Transfer Expired
+
+Inform sender that the transfer expired.
+
+### Missing Key Report
+
+Relevant stakeholders are notified about missing/unaccounted-for keys.
+
+### Scheduled Missing Keys Report
+
+A scheduled report notification containing the current number of missing keys and associated financial cost.
+
+Unread notifications should be visually highlighted.
+
+---
+
+# 24. Incoming Transfer Notification Interaction
+
+This interaction is critical.
+
+When the employee taps:
+
+**Incoming Key Transfer**
+
+they must be taken directly to:
+
+**QR Scanner**
+
+After scanning:
+
+**Transfer Details → Accept / Reject**
+
+Do not bypass QR verification.
+
+---
+
+# 25. Missing Keys / Financial Impact Notifications
+
+Create an automated notification/report that is sent **every 3 days** to the relevant stakeholders.
+
+The report should provide a summary of missing/unaccounted-for keys and the estimated financial impact to the company.
+
+Example:
+
+### Missing Keys Report
+
+**Reporting Period:** Last 3 Days
+**Missing Keys:** 12
+**Estimated Cost:** ₹24,000
+
+Show:
+
+* Total missing keys
+* Total estimated financial cost in rupees
+* Cost per missing key, where applicable
+* Vehicles affected
+* Departments affected
+* Employees/custodians associated with missing keys
+* Number of newly reported missing keys
+* Number of previously missing keys
+* Number of keys recovered
+
+The notification should be sent to configurable stakeholders such as:
+
+* Garage Manager
+* Operations Manager
+* Regional/City Operations
+* Other designated stakeholders
+
+Make the recipient list configurable.
+
+### Cost calculation
+
+The prototype should support a configurable **cost per key** or key replacement value.
+
+Example configuration:
+
+`KEY_REPLACEMENT_COST = ₹2,000`
+
+Then:
+
+**Total Missing Key Cost = Number of Missing Keys × Replacement Cost**
+
+Do not hard-code the final business value. Make it configurable.
+
+---
+
+# 26. Missing Key Dashboard / Reporting
+
+Include a simple reporting view for authorized users.
+
+Display:
+
+* Total keys
+* Keys currently assigned
+* Keys in transfer
+* Missing keys
+* Missing key percentage
+* Total estimated missing-key cost
+* Keys recovered
+* Transfers completed
+* Transfers rejected
+* Transfers expired
+
+Use simple KPI cards.
+
+A manager should be able to immediately understand the current key-control situation.
+
+---
+
+# 27. Profile
+
+Display:
+
+* Employee Name
+* Department
+* Role
+* Current Keys
+* Transfers Today
+* Notifications
+* Logout
+
+Keep this screen simple.
+
+---
+
+# 28. Navigation & Prototype Behavior
+
+The prototype must have **fully connected navigation between screens**.
+
+Do not create isolated static screens.
+
+Every important action must demonstrate the resulting state.
+
+For example:
+
+### Sender flow
+
+My Keys
+→ Select Vehicle
+→ Send Key
+→ Select Employee
+→ Transfer Key
+→ **Waiting For Acceptance + 2-minute timer**
+→ Transfer Complete / Transfer Unsuccessful / Transfer Expired
+
+### Receiver flow
+
+Notifications
+→ Incoming Transfer
+→ **QR Scanner**
+→ Scan QR
+→ Transfer Details
+→ Accept / Reject
+→ Transfer Complete / Transfer Unsuccessful
+
+### Job card flow
+
+My Keys
+→ Vehicle
+→ Job Card Open
+→ Confirmation
+→ Job Card Opened Successfully
+
+### Close flow
+
+My Keys
+→ Vehicle
+→ Job Card Close
+→ Confirmation
+→ Vehicle Delivered Successfully
+→ Vehicle removed from My Keys
+
+### Missing key flow
+
+My Keys
+→ Vehicle
+→ I Don't Have the Key
+→ Google Form / missing-key report
+
+---
+
+# 29. Interaction States
+
+The prototype should explicitly show these states:
+
+### Transfer States
+
+* Ready to transfer
+* Employee selected
+* Transfer initiated
+* Waiting for acceptance
+* Receiver scanning
+* Accepted
+* Rejected
+* Cancelled
+* Expired
+* Complete
+* Unsuccessful
+
+### Key States
+
+* Assigned
+* Transfer pending
+* Missing
+* Inside Garage
+* Outside Garage
+
+### Job Card States
+
+* Closed
+* Open
+
+Use clear badges, icons, and status indicators.
+
+---
+
+# 30. Error Handling
+
+Design realistic error states.
+
+Examples:
+
+### Unauthorized action
+
+If a user attempts an action they are not permitted to perform:
+
+**Unauthorized Action**
+
+**Only the current custodian may perform this action.**
+
+### Invalid QR
+
+**QR Code Not Recognized**
+
+Allow:
+
+**Try Again**
+**Search Key**
+
+### QR belongs to another vehicle
+
+Show an understandable error rather than failing silently.
+
+### Transfer already completed
+
+Show:
+
+**Transfer Already Completed**
+
+### Transfer expired
+
+Show:
+
+**Transfer Expired**
+
+### Key already in another transfer
+
+Show:
+
+**Transfer Already In Progress**
+
+Prevent duplicate transfers.
+
+---
+
+# 31. User Roles & Permissions
+
+The prototype should support role-based permissions.
+
+At minimum:
+
+### Employee / Mechanic
+
+Can:
+
+* View assigned keys
+* Send keys
+* Receive keys
+* Accept/reject transfers
+* Open/close job cards where authorized
+* Report missing keys
+
+### Supervisor / Manager
+
+Can additionally:
+
+* View broader key information
+* View missing-key reports
+* View financial impact
+* View audit history
+
+Use configurable role permissions rather than hard-coding permissions into the UI.
+
+---
+
+# 32. High-Fidelity UI Requirements
+
+Create all major screens as **high-fidelity mobile screens**, not low-fidelity boxes.
+
+Use:
+
+* White/light background
+* Blue primary buttons
+* Rounded cards
+* Subtle borders/shadows
+* Large touch targets
+* Simple icons
+* Modern enterprise typography
+* Clear spacing
+* Strong visual hierarchy
+* Bottom navigation
+* Status badges
+* Confirmation dialogs
+* Toast/success states
+* Empty states
+* Loading states
+* Error states
+
+The UI should feel like a **real production enterprise application**, not a generic consumer app.
+
+Avoid excessive decoration, gradients, unnecessary illustrations, or complex animations.
+
+---
+
+# 33. Prototype Data
+
+Use realistic mock data for the prototype.
+
+Example vehicle numbers:
+
+* MH 01 AB 1234
+* MH 02 CD 5678
+* MH 04 EF 9012
+* MH 43 GH 3456
+
+Example employees:
+
+* Rahul Sharma — Service
+* Amit Patel — Mechanical
+* Priya Nair — Service Advisor
+* Rohan Mehta — Body Shop
+* Sneha Shah — Operations
+
+Use realistic departments and statuses throughout the prototype.
+
+---
+
+# 34. Important UX Requirement — Immediate Feedback
+
+Every button must visibly do something.
+
+For example, after clicking:
+
+**Transfer Key**
+
+the UI must immediately display:
+
+**Waiting For Acceptance**
+
+with:
+
+* Receiver name
+* Vehicle number
+* Pending status
+* 2-minute countdown
+* Cancel Transfer button
+
+Do not return the user to the previous page without showing the transfer state.
+
+Similarly:
+
+* Accept → **Transfer Complete**
+* Reject → **Transfer Unsuccessful**
+* Expire → **Transfer Expired**
+* Job Card Open → **Job Card Opened Successfully**
+* Job Card Close → **Vehicle Delivered Successfully**
+
+---
+
+# 35. Final Prototype Requirement
+
+Build the prototype as an end-to-end interactive application demonstrating both sides of the workflow:
+
+### Sender
+
+**My Keys → Select Key → Send Key → Select Employee → Transfer Key → Waiting + Timer → Outcome**
+
+### Receiver
+
+**Notifications → Incoming Transfer → QR Scanner → Scan Key → Accept/Reject → Outcome**
+
+Also demonstrate:
+
+**Bulk Send**
+
+**Job Card Open**
+
+**Job Card Close**
+
+**I Don't Have the Key**
+
+**Search Key fallback**
+
+**Key History**
+
+**Notifications**
+
+**Missing Key Reporting**
+
+**3-day Missing Key Financial Impact Notification**
+
+The final prototype should feel like a **real fleet-garage operational tool**, with fast workflows, clear ownership, complete transfer accountability, and no ambiguous states.

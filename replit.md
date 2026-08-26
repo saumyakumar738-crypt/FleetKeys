@@ -1,6 +1,6 @@
-# [Project name]
+# Fleet Key Control
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Fleet Key Control is a mobile-first fleet garage app for fast, accountable vehicle-key custody and transfer workflows.
 
 ## Run & Operate
 
@@ -22,23 +22,34 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/fleet-key-control/app/index.tsx` — the interactive prototype, navigation, local state, and mobile UI
+- `artifacts/fleet-key-control/constants/colors.ts` — semantic palette used by the app
+- `artifacts/fleet-key-control/app.json` — Expo app identity and launch configuration
+- `attached_assets/Pasted--Fleet-Garage-Key-Tracking-System-Employee-Mobile-App-P_1787736648672.txt` — source product specification
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The first build is frontend-only and uses AsyncStorage so the complete workflow can be demonstrated without a server or database.
+- Sender and receiver behavior are represented in one mobile experience, with prototype controls for demonstrating both sides of a transfer.
+- Vehicle-key custody stays with the current employee until an incoming transfer is explicitly accepted.
+- The missing-key form destination is intentionally configurable and remains unset until the garage supplies its Google Form URL.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Dashboard with key, transfer, and quick-action summaries
+- Searchable My Keys list with vehicle detail, job-card controls, transfer, and audit history
+- QR scanner presentation with manual vehicle/key-ID fallback
+- Single and bulk transfer flows with receiver verification, acceptance, rejection, cancellation, expiry, and countdown states
+- Notifications, missing-key reporting entry point, profile, and manager KPI/financial-impact reporting
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+No additional preferences recorded.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Set `MISSING_KEY_GOOGLE_FORM_URL` in the app before using the external missing-key report action.
+- The current dataset is intentionally local prototype data; replacing it with a backend should preserve the custody and explicit-acceptance rules.
 
 ## Pointers
 
