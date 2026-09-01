@@ -32,6 +32,7 @@ Fleet Key Control is a mobile-first fleet garage app for fast, accountable vehic
 - The first build is frontend-only and uses AsyncStorage so the complete workflow can be demonstrated without a server or database.
 - Sender and receiver behavior are represented in one mobile experience, with prototype controls for demonstrating both sides of a transfer.
 - Vehicle-key custody stays with the current employee until an incoming transfer is explicitly accepted.
+- Every single-key and bulk transfer requires an explicit purpose: Recovery, Repair, or Parking; the purpose remains visible through pending, receiver, and result states.
 - The missing-key form destination is intentionally configurable and remains unset until the garage supplies its Google Form URL.
 
 ## Product

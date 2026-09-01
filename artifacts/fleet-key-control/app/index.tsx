@@ -40,6 +40,13 @@ type ViewName =
   | 'missing'
   | 'report';
 type OutcomeType = 'complete' | 'rejected' | 'expired' | 'cancelled' | 'opened' | 'delivered';
+type TransferPurpose = 'Recovery' | 'Repair' | 'Parking';
+
+const transferPurposes: { value: TransferPurpose; icon: React.ComponentProps<typeof Feather>['name']; description: string }[] = [
+  { value: 'Recovery', icon: 'refresh-cw', description: 'Recover or relocate the vehicle' },
+  { value: 'Repair', icon: 'tool', description: 'Move into a repair workflow' },
+  { value: 'Parking', icon: 'map-pin', description: 'Move for parking or staging' },
+];
 
 type KeyRecord = {
   id: string;
@@ -76,6 +83,7 @@ type Transfer = {
   vehicle: string;
   sender: string;
   senderDepartment: string;
+  purpose: TransferPurpose;
   startedAt: string;
   remaining: number;
   kind: 'single' | 'bulk';
@@ -167,7 +175,7 @@ const initialNotifications: NotificationItem[] = [
   {
     id: 'n-incoming',
     title: 'Incoming Key Transfer',
-    body: 'Rahul Sharma wants to transfer MH 02 CD 5678 to you.',
+    body: 'Rahul Sharma wants to transfer MH 02 CD 5678 to you · Repair',
     time: 'Just now',
     unread: true,
     tone: 'amber',
@@ -414,6 +422,7 @@ export default function App() {
   const [selectedKeyId, setSelectedKeyId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [selectedPurpose, setSelectedPurpose] = useState<TransferPurpose | null>(null);
   const [selectedBulkIds, setSelectedBulkIds] = useState<string[]>([]);
   const [activeTransfer, setActiveTransfer] = useState<Transfer | null>(null);
   const [outcome, setOutcome] = useState<OutcomeType>('complete');
@@ -486,11 +495,12 @@ export default function App() {
     }
     setSelectedKeyId(keyId);
     setSelectedEmployee(null);
+    setSelectedPurpose(null);
     setView('send-employee');
   };
 
   const startTransfer = () => {
-    if (!selectedKey || !selectedEmployee) return;
+    if (!selectedKey || !selectedEmployee || !selectedPurpose) return;
     const transfer: Transfer = {
       id: `transfer-${Date.now()}`,
       keyIds: [selectedKey.id],
@@ -498,6 +508,7 @@ export default function App() {
       vehicle: selectedKey.vehicle,
       sender: CURRENT_USER,
       senderDepartment: 'Mechanical',
+      purpose: selectedPurpose,
       startedAt: nowLabel(),
       remaining: 120,
       kind: 'single',
@@ -523,6 +534,7 @@ export default function App() {
       vehicle: sourceKey.vehicle,
       sender: sourceKey.custodian,
       senderDepartment: sourceKey.department,
+      purpose: 'Repair',
       startedAt: 'Today, 11:18',
       remaining: 106,
       kind: 'single',
@@ -621,11 +633,12 @@ export default function App() {
   const startBulkFlow = () => {
     setSelectedBulkIds([]);
     setSelectedEmployee(null);
+    setSelectedPurpose(null);
     setView('bulk-select');
   };
 
   const startBulkTransfer = () => {
-    if (!selectedEmployee || selectedBulkIds.length === 0) return;
+    if (!selectedEmployee || selectedBulkIds.length === 0 || !selectedPurpose) return;
     const selectedVehicles = keys.filter((item) => selectedBulkIds.includes(item.id)).map((item) => item.vehicle);
     const transfer: Transfer = {
       id: `bulk-${Date.now()}`,
@@ -634,6 +647,7 @@ export default function App() {
       vehicle: selectedVehicles.join(', '),
       sender: CURRENT_USER,
       senderDepartment: 'Mechanical',
+      purpose: selectedPurpose,
       startedAt: nowLabel(),
       remaining: 120,
       kind: 'bulk',
@@ -775,7 +789,8 @@ export default function App() {
         <View style={styles.flowIntro}><View style={styles.stepBadge}><Text style={styles.stepBadgeText}>1</Text></View><View><Text style={styles.flowTitle}>Select employee</Text><Text style={styles.flowBody}>The key stays with you until they accept.</Text></View></View>
         <View style={styles.inputWrap}><Icon name="search" size={18} color={C.mutedForeground} /><TextInput value={search} onChangeText={setSearch} placeholder="Search employees" placeholderTextColor={C.mutedForeground} style={styles.input} /></View>
         {employees.filter((employee) => employee.name.toLowerCase().includes(search.toLowerCase())).map((employee) => <Pressable key={employee.name} onPress={() => setSelectedEmployee(employee)} style={[styles.employeeCard, selectedEmployee?.name === employee.name && styles.employeeCardSelected]}><View style={styles.avatar}><Text style={styles.avatarText}>{employee.initials}</Text></View><View style={styles.employeeCopy}><Text style={styles.employeeName}>{employee.name}</Text><Text style={styles.employeeMeta}>{employee.department} · {employee.role}</Text></View><View style={styles.employeeKeys}><Text style={styles.employeeKeyCount}>{employee.keys}</Text><Text style={styles.employeeKeyLabel}>keys</Text></View>{selectedEmployee?.name === employee.name ? <View style={styles.selectedCheck}><Icon name="check" size={14} color={C.primaryForeground} /></View> : null}</Pressable>)}
-        <View style={styles.stickyAction}><PrimaryButton label="Transfer Key" icon="send" onPress={startTransfer} disabled={!selectedEmployee} /></View>
+        <View style={styles.purposeSection}><Text style={styles.purposeTitle}>Purpose of transfer</Text><Text style={styles.purposeHint}>Help the receiver understand why the key is moving.</Text><View style={styles.purposeGrid}>{transferPurposes.map((purpose) => <Pressable key={purpose.value} onPress={() => setSelectedPurpose(purpose.value)} style={[styles.purposeCard, selectedPurpose === purpose.value && styles.purposeCardSelected]}><View style={[styles.purposeIcon, selectedPurpose === purpose.value && styles.purposeIconSelected]}><Icon name={purpose.icon} size={17} color={selectedPurpose === purpose.value ? C.primaryForeground : C.primary} /></View><Text style={styles.purposeName}>{purpose.value}</Text><Text style={styles.purposeDescription}>{purpose.description}</Text>{selectedPurpose === purpose.value ? <View style={styles.purposeCheck}><Icon name="check" size={11} color={C.primaryForeground} /></View> : null}</Pressable>)}</View></View>
+        <View style={styles.stickyAction}><PrimaryButton label="Transfer Key" icon="send" onPress={startTransfer} disabled={!selectedEmployee || !selectedPurpose} /></View>
       </ScrollView>
     </>
   );
@@ -787,7 +802,7 @@ export default function App() {
       <>
         <Header title="Transfer Pending" subtitle={isBulk ? `${activeTransfer.keyIds.length} keys in one request` : activeTransfer.vehicle} onBack={() => { setView('tab'); setActiveTab('keys'); }} />
         <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
-          <View style={styles.pendingCard}><View style={styles.pendingIcon}><Icon name="clock" size={25} color={C.warning} /></View><Text style={styles.pendingTitle}>Waiting for acceptance</Text><Text style={styles.pendingBody}>The current custodian remains the owner until the receiver scans and accepts.</Text><View style={styles.timerCircle}><Text style={styles.timerText}>{formatTimer(activeTransfer.remaining)}</Text><Text style={styles.timerLabel}>TIME LEFT</Text></View><View style={styles.pendingMeta}><InfoRow label={isBulk ? 'Keys' : 'Vehicle number'} value={isBulk ? `${activeTransfer.keyIds.length} selected` : activeTransfer.vehicle} icon={isBulk ? 'layers' : 'truck'} /><InfoRow label="Sending to" value={activeTransfer.recipient.name} icon="user" /><InfoRow label="Department" value={activeTransfer.recipient.department} icon="briefcase" last /></View></View>
+          <View style={styles.pendingCard}><View style={styles.pendingIcon}><Icon name="clock" size={25} color={C.warning} /></View><Text style={styles.pendingTitle}>Waiting for acceptance</Text><Text style={styles.pendingBody}>The current custodian remains the owner until the receiver scans and accepts.</Text><View style={styles.timerCircle}><Text style={styles.timerText}>{formatTimer(activeTransfer.remaining)}</Text><Text style={styles.timerLabel}>TIME LEFT</Text></View><View style={styles.pendingMeta}><InfoRow label={isBulk ? 'Keys' : 'Vehicle number'} value={isBulk ? `${activeTransfer.keyIds.length} selected` : activeTransfer.vehicle} icon={isBulk ? 'layers' : 'truck'} /><InfoRow label="Purpose" value={activeTransfer.purpose} icon="tag" /><InfoRow label="Sending to" value={activeTransfer.recipient.name} icon="user" /><InfoRow label="Department" value={activeTransfer.recipient.department} icon="briefcase" last /></View></View>
           {isBulk ? <View style={styles.bulkVerifyCard}><View><Text style={styles.bulkVerifyTitle}>{activeTransfer.keyIds.length} keys pending</Text><Text style={styles.bulkVerifyBody}>Receiver scans each key QR code</Text></View><Pill label="0 verified" tone="amber" /></View> : null}
           <View style={styles.waitingNote}><Icon name="shield" size={17} color={C.primary} /><Text style={styles.waitingNoteText}>Waiting for {activeTransfer.recipient.name} to scan the QR code and accept the transfer.</Text></View>
           <PrimaryButton label="Cancel Transfer" icon="x-circle" variant="danger" onPress={cancelTransfer} />
@@ -806,7 +821,7 @@ export default function App() {
         <View style={styles.flowProgress}><View style={styles.progressDone}><Icon name="check" size={14} color={C.primaryForeground} /></View><View style={styles.progressLineActive} /><View style={styles.progressCurrent}><Text style={styles.progressCurrentText}>2</Text></View><View style={styles.progressLine} /><View style={styles.progressNext}><Text style={styles.progressNextText}>3</Text></View></View>
         <Text style={styles.progressLabels}><Text style={styles.progressLabelActive}>Notification</Text><Text>  →  Scan key  →  Accept</Text></Text>
         <View style={styles.scannerCard}><Text style={styles.scannerKicker}>INCOMING KEY TRANSFER</Text><Text style={styles.scannerTitle}>Scan the physical key</Text><Text style={styles.scannerBody}>This verification step confirms the key in your hand matches the transfer request.</Text><View style={styles.qrFrame}><View style={[styles.corner, styles.cornerTL]} /><View style={[styles.corner, styles.cornerTR]} /><View style={[styles.corner, styles.cornerBL]} /><View style={[styles.corner, styles.cornerBR]} /><View style={styles.fakeQr}><View style={styles.qrBlock} /><View style={[styles.qrBlock, styles.qrBlockSmall]} /><View style={[styles.qrBlock, styles.qrBlockWide]} /><View style={[styles.qrBlock, styles.qrBlockTiny]} /></View><View style={styles.scanLine} /></View><PrimaryButton label="Simulate QR scan" icon="maximize" onPress={() => setView('incoming-detail')} /></View>
-        <View style={styles.transferMiniCard}><View style={styles.resultIcon}><Icon name="truck" size={17} color={C.primary} /></View><View><Text style={styles.resultVehicle}>{incomingTransfer?.vehicle}</Text><Text style={styles.resultMeta}>From {incomingTransfer?.sender} · {incomingTransfer?.senderDepartment}</Text></View><Pill label={incomingTransfer ? formatTimer(incomingTransfer.remaining) : '02:00'} tone="amber" /></View>
+        <View style={styles.transferMiniCard}><View style={styles.resultIcon}><Icon name="truck" size={17} color={C.primary} /></View><View style={styles.keyCardCopy}><Text style={styles.resultVehicle}>{incomingTransfer?.vehicle}</Text><Text style={styles.resultMeta}>From {incomingTransfer?.sender} · {incomingTransfer?.senderDepartment}</Text><Text style={styles.transferPurposeText}>Purpose · {incomingTransfer?.purpose}</Text></View><Pill label={incomingTransfer ? formatTimer(incomingTransfer.remaining) : '02:00'} tone="amber" /></View>
       </ScrollView>
     </>
   );
@@ -817,7 +832,7 @@ export default function App() {
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.verifiedBanner}><View style={styles.verifiedIcon}><Icon name="check" size={21} color={C.success} /></View><View><Text style={styles.verifiedTitle}>Key verified</Text><Text style={styles.verifiedBody}>The QR code matches this transfer request.</Text></View></View>
         <View style={styles.incomingDetailHero}><Text style={styles.detailVehicle}>{incomingTransfer?.vehicle}</Text><Text style={styles.detailKeyId}>Incoming from {incomingTransfer?.sender}</Text><Pill label="Transfer pending" tone="amber" dot /></View>
-        <View style={styles.detailInfoCard}><InfoRow label="Sender" value={incomingTransfer?.sender ?? ''} icon="user" /><InfoRow label="Sender department" value={incomingTransfer?.senderDepartment ?? ''} icon="briefcase" /><InfoRow label="Current custodian" value={incomingTransfer?.sender ?? ''} icon="key" /><InfoRow label="Initiated" value={incomingTransfer?.startedAt ?? ''} icon="clock" last /></View>
+        <View style={styles.detailInfoCard}><InfoRow label="Sender" value={incomingTransfer?.sender ?? ''} icon="user" /><InfoRow label="Sender department" value={incomingTransfer?.senderDepartment ?? ''} icon="briefcase" /><InfoRow label="Purpose" value={incomingTransfer?.purpose ?? ''} icon="tag" /><InfoRow label="Current custodian" value={incomingTransfer?.sender ?? ''} icon="key" /><InfoRow label="Initiated" value={incomingTransfer?.startedAt ?? ''} icon="clock" last /></View>
         <View style={styles.expirationNote}><Icon name="clock" size={16} color={C.warning} /><Text style={styles.expirationText}>Expires in {formatTimer(incomingTransfer?.remaining ?? 0)}. Ownership changes only if you accept.</Text></View>
         <View style={styles.acceptReject}><PrimaryButton label="Accept" icon="check-circle" onPress={acceptIncoming} testID="accept-transfer-button" /><PrimaryButton label="Reject" icon="x-circle" variant="danger" onPress={rejectIncoming} testID="reject-transfer-button" /></View>
       </ScrollView>
@@ -838,7 +853,7 @@ export default function App() {
       <>
         <Header title="Result" subtitle="Action recorded" onBack={() => { setView('tab'); setActiveTab('home'); setIncomingTransfer(null); }} />
         <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
-          <View style={styles.outcomeCard}><View style={[styles.outcomeIcon, { backgroundColor: `${toneColor(item.tone)}16` }]}><Icon name={item.icon} size={29} color={toneColor(item.tone)} /></View><Text style={styles.outcomeTitle}>{item.title}</Text><Text style={styles.outcomeBody}>{item.body}</Text><View style={styles.outcomeDetail}><Text style={styles.outcomeDetailLabel}>{outcome === 'complete' && incomingTransfer ? 'TRANSFER TIME' : 'STATUS'}</Text><Text style={styles.outcomeDetailValue}>{outcome === 'complete' && incomingTransfer ? nowLabel() : item.detail}</Text></View></View>
+          <View style={styles.outcomeCard}><View style={[styles.outcomeIcon, { backgroundColor: `${toneColor(item.tone)}16` }]}><Icon name={item.icon} size={29} color={toneColor(item.tone)} /></View><Text style={styles.outcomeTitle}>{item.title}</Text><Text style={styles.outcomeBody}>{item.body}</Text><View style={styles.outcomeDetail}><Text style={styles.outcomeDetailLabel}>{outcome === 'complete' && incomingTransfer ? 'TRANSFER TIME' : 'STATUS'}</Text><Text style={styles.outcomeDetailValue}>{outcome === 'complete' && incomingTransfer ? `${nowLabel()} · Purpose · ${incomingTransfer.purpose}` : `${item.detail} · Purpose · ${incomingTransfer?.purpose ?? activeTransfer?.purpose ?? '—'}`}</Text></View></View>
           <PrimaryButton label="Back to Home" icon="home" onPress={() => { setView('tab'); setActiveTab('home'); setIncomingTransfer(null); }} />
           <PrimaryButton label="View Notifications" icon="bell" variant="ghost" onPress={() => { setView('tab'); setActiveTab('notifications'); setIncomingTransfer(null); }} />
         </ScrollView>
@@ -879,7 +894,8 @@ export default function App() {
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.flowIntro}><View style={styles.stepBadge}><Text style={styles.stepBadgeText}>2</Text></View><View><Text style={styles.flowTitle}>Select receiver</Text><Text style={styles.flowBody}>All selected keys will go to one employee.</Text></View></View>
         {employees.map((employee) => <Pressable key={employee.name} onPress={() => setSelectedEmployee(employee)} style={[styles.employeeCard, selectedEmployee?.name === employee.name && styles.employeeCardSelected]}><View style={styles.avatar}><Text style={styles.avatarText}>{employee.initials}</Text></View><View style={styles.employeeCopy}><Text style={styles.employeeName}>{employee.name}</Text><Text style={styles.employeeMeta}>{employee.department} · {employee.role}</Text></View><Text style={styles.employeeKeyCount}>{employee.keys} keys</Text>{selectedEmployee?.name === employee.name ? <View style={styles.selectedCheck}><Icon name="check" size={14} color={C.primaryForeground} /></View> : null}</Pressable>)}
-        <PrimaryButton label="Review transfer" icon="arrow-right" onPress={() => setView('bulk-summary')} disabled={!selectedEmployee} />
+        <View style={styles.purposeSection}><Text style={styles.purposeTitle}>Purpose of transfer</Text><Text style={styles.purposeHint}>Apply one purpose to all selected keys.</Text><View style={styles.purposeGrid}>{transferPurposes.map((purpose) => <Pressable key={purpose.value} onPress={() => setSelectedPurpose(purpose.value)} style={[styles.purposeCard, selectedPurpose === purpose.value && styles.purposeCardSelected]}><View style={[styles.purposeIcon, selectedPurpose === purpose.value && styles.purposeIconSelected]}><Icon name={purpose.icon} size={17} color={selectedPurpose === purpose.value ? C.primaryForeground : C.primary} /></View><Text style={styles.purposeName}>{purpose.value}</Text><Text style={styles.purposeDescription}>{purpose.description}</Text>{selectedPurpose === purpose.value ? <View style={styles.purposeCheck}><Icon name="check" size={11} color={C.primaryForeground} /></View> : null}</Pressable>)}</View></View>
+        <PrimaryButton label="Review transfer" icon="arrow-right" onPress={() => setView('bulk-summary')} disabled={!selectedEmployee || !selectedPurpose} />
       </ScrollView>
     </>
   );
@@ -890,7 +906,7 @@ export default function App() {
       <>
         <Header title="Review bulk transfer" subtitle="Confirm before sending" onBack={() => setView('bulk-recipient')} />
         <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
-          <View style={styles.summaryCard}><View style={styles.summaryTop}><View style={styles.stepBadge}><Text style={styles.stepBadgeText}>3</Text></View><View><Text style={styles.flowTitle}>{selectedBulkIds.length} keys selected</Text><Text style={styles.flowBody}>Sending to {selectedEmployee?.name}</Text></View></View>{chosenKeys.map((item) => <View key={item.id} style={styles.summaryRow}><Icon name="truck" size={16} color={C.primary} /><Text style={styles.summaryVehicle}>{item.vehicle}</Text><Text style={styles.summaryDepartment}>{item.department}</Text></View>)}</View>
+          <View style={styles.summaryCard}><View style={styles.summaryTop}><View style={styles.stepBadge}><Text style={styles.stepBadgeText}>3</Text></View><View><Text style={styles.flowTitle}>{selectedBulkIds.length} keys selected</Text><Text style={styles.flowBody}>Sending to {selectedEmployee?.name}</Text></View></View><View style={styles.summaryPurpose}><Icon name="tag" size={15} color={C.primary} /><Text style={styles.summaryPurposeText}>Purpose · {selectedPurpose}</Text></View>{chosenKeys.map((item) => <View key={item.id} style={styles.summaryRow}><Icon name="truck" size={16} color={C.primary} /><Text style={styles.summaryVehicle}>{item.vehicle}</Text><Text style={styles.summaryDepartment}>{item.department}</Text></View>)}</View>
           <View style={styles.waitingNote}><Icon name="shield" size={17} color={C.primary} /><Text style={styles.waitingNoteText}>The receiver must scan each selected key. Ownership changes only for verified keys they accept.</Text></View>
           <PrimaryButton label="Send Keys" icon="send" onPress={startBulkTransfer} />
         </ScrollView>
@@ -1155,6 +1171,17 @@ const styles = StyleSheet.create({
   employeeKeyCount: { color: C.foreground, fontFamily: 'Inter_700Bold', fontSize: 14 },
   employeeKeyLabel: { color: C.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 9 },
   selectedCheck: { width: 22, height: 22, borderRadius: 11, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
+  purposeSection: { backgroundColor: C.card, borderRadius: 18, borderWidth: 1, borderColor: C.border, padding: 14, gap: 4 },
+  purposeTitle: { color: C.foreground, fontFamily: 'Inter_700Bold', fontSize: 13 },
+  purposeHint: { color: C.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 10, marginBottom: 7 },
+  purposeGrid: { flexDirection: 'row', gap: 7 },
+  purposeCard: { flex: 1, minHeight: 91, borderRadius: 13, borderWidth: 1, borderColor: C.border, backgroundColor: C.background, padding: 9, position: 'relative' },
+  purposeCardSelected: { borderColor: C.primary, backgroundColor: `${C.primary}09` },
+  purposeIcon: { width: 27, height: 27, borderRadius: 9, backgroundColor: `${C.primary}12`, alignItems: 'center', justifyContent: 'center', marginBottom: 7 },
+  purposeIconSelected: { backgroundColor: C.primary },
+  purposeName: { color: C.foreground, fontFamily: 'Inter_700Bold', fontSize: 11 },
+  purposeDescription: { color: C.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 8, lineHeight: 11, marginTop: 3 },
+  purposeCheck: { width: 16, height: 16, borderRadius: 8, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', position: 'absolute', top: 7, right: 7 },
   stickyAction: { marginTop: 5 },
   pendingCard: { backgroundColor: C.card, borderRadius: 23, borderWidth: 1, borderColor: C.border, padding: 20, alignItems: 'center' },
   pendingIcon: { width: 52, height: 52, borderRadius: 18, backgroundColor: `${C.warning}15`, alignItems: 'center', justifyContent: 'center' },
@@ -1185,6 +1212,7 @@ const styles = StyleSheet.create({
   progressLabels: { textAlign: 'center', color: C.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 10 },
   progressLabelActive: { color: C.success, fontFamily: 'Inter_600SemiBold' },
   transferMiniCard: { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 12, flexDirection: 'row', gap: 10, alignItems: 'center' },
+  transferPurposeText: { color: C.primary, fontFamily: 'Inter_600SemiBold', fontSize: 10, marginTop: 4 },
   verifiedBanner: { backgroundColor: `${C.success}10`, borderRadius: 16, borderWidth: 1, borderColor: `${C.success}35`, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 10 },
   verifiedIcon: { width: 35, height: 35, borderRadius: 12, backgroundColor: `${C.success}18`, alignItems: 'center', justifyContent: 'center' },
   verifiedTitle: { color: C.success, fontFamily: 'Inter_700Bold', fontSize: 12 },
@@ -1221,6 +1249,8 @@ const styles = StyleSheet.create({
   selectionHint: { textAlign: 'center', color: C.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 11 },
   summaryCard: { backgroundColor: C.card, borderRadius: 19, borderWidth: 1, borderColor: C.border, padding: 15 },
   summaryTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 7 },
+  summaryPurpose: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: `${C.primary}0D`, borderRadius: 9, paddingHorizontal: 9, paddingVertical: 7, marginBottom: 6 },
+  summaryPurposeText: { color: C.primary, fontFamily: 'Inter_700Bold', fontSize: 10 },
   summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 41, borderTopWidth: 1, borderTopColor: C.border },
   summaryVehicle: { color: C.foreground, fontFamily: 'Inter_600SemiBold', fontSize: 11, flex: 1 },
   summaryDepartment: { color: C.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 10 },
