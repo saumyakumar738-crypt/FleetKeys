@@ -22,7 +22,7 @@ const C = colors.light;
 const MISSING_KEY_GOOGLE_FORM_URL = '';
 const CURRENT_USER = 'Amit Patel';
 
-type Tab = 'home' | 'scanner' | 'keys' | 'notifications' | 'profile';
+type Tab = 'home' | 'scanner' | 'keys' | 'notifications' | 'penalties' | 'profile';
 type ViewName =
   | 'tab'
   | 'key-detail'
@@ -38,9 +38,12 @@ type ViewName =
   | 'job-open'
   | 'job-close'
   | 'missing'
-  | 'report';
-type OutcomeType = 'complete' | 'rejected' | 'expired' | 'cancelled' | 'opened' | 'delivered';
+  | 'report'
+  | 'allot-driver'
+  | 'penalty-create';
+type OutcomeType = 'complete' | 'rejected' | 'expired' | 'cancelled' | 'opened' | 'delivered' | 'penalty-issued' | 'penalty-reverted';
 type TransferPurpose = 'Recovery' | 'Repair' | 'Parking';
+type PenaltyReason = 'Lost key' | 'Not found at vehicle recovery';
 
 const transferPurposes: { value: TransferPurpose; icon: React.ComponentProps<typeof Feather>['name']; description: string }[] = [
   { value: 'Recovery', icon: 'refresh-cw', description: 'Recover or relocate the vehicle' },
@@ -98,6 +101,30 @@ type NotificationItem = {
   unread: boolean;
   tone: 'blue' | 'green' | 'amber' | 'red';
   incoming?: boolean;
+};
+
+type DriverKeyRecord = {
+  id: string;
+  vehicle: string;
+  keyId: string;
+  driver: string;
+  driverId: string;
+  phone: string;
+  status: 'Available' | 'Allotted to driver' | 'Missing' | 'Recovered';
+  allottedAt?: string;
+};
+
+type PenaltyRecord = {
+  id: string;
+  driver: string;
+  driverId: string;
+  vehicle: string;
+  keyId: string;
+  reason: PenaltyReason;
+  amount: number;
+  issuedAt: string;
+  status: 'Active' | 'Reverted';
+  revertedAt?: string;
 };
 
 const employees: Employee[] = [
@@ -197,6 +224,23 @@ const initialNotifications: NotificationItem[] = [
     unread: false,
     tone: 'green',
   },
+];
+
+const drivers = [
+  { name: 'Vikram Singh', driverId: 'DRV-142', phone: '+91 98 2104 7782', initials: 'VS' },
+  { name: 'Anil Kumar', driverId: 'DRV-208', phone: '+91 99 8412 0916', initials: 'AK' },
+  { name: 'Mohan Joshi', driverId: 'DRV-317', phone: '+91 97 5501 6634', initials: 'MJ' },
+];
+
+const initialDriverKeys: DriverKeyRecord[] = [
+  { id: 'dup-01', vehicle: 'MH 01 AB 1234', keyId: 'DUP-0248', driver: 'Vikram Singh', driverId: 'DRV-142', phone: '+91 98 2104 7782', status: 'Allotted to driver', allottedAt: 'Today, 08:05' },
+  { id: 'dup-02', vehicle: 'MH 04 EF 9012', keyId: 'DUP-0193', driver: 'Anil Kumar', driverId: 'DRV-208', phone: '+91 99 8412 0916', status: 'Available' },
+  { id: 'dup-03', vehicle: 'MH 02 CD 5678', keyId: 'DUP-0319', driver: '—', driverId: '—', phone: '—', status: 'Available' },
+];
+
+const initialPenalties: PenaltyRecord[] = [
+  { id: 'pen-01', driver: 'Vikram Singh', driverId: 'DRV-142', vehicle: 'MH 01 AB 1234', keyId: 'DUP-0248', reason: 'Lost key', amount: 2000, issuedAt: 'Today, 09:12', status: 'Active' },
+  { id: 'pen-02', driver: 'Anil Kumar', driverId: 'DRV-208', vehicle: 'MH 04 EF 9012', keyId: 'DUP-0193', reason: 'Not found at vehicle recovery', amount: 2000, issuedAt: 'Yesterday, 17:40', status: 'Active' },
 ];
 
 function nowLabel() {
@@ -424,6 +468,13 @@ export default function App() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedPurpose, setSelectedPurpose] = useState<TransferPurpose | null>(null);
   const [selectedBulkIds, setSelectedBulkIds] = useState<string[]>([]);
+  const [driverKeys, setDriverKeys] = useState<DriverKeyRecord[]>(initialDriverKeys);
+  const [penalties, setPenalties] = useState<PenaltyRecord[]>(initialPenalties);
+  const [selectedDriverKeyId, setSelectedDriverKeyId] = useState<string | null>(null);
+  const [selectedDriver, setSelectedDriver] = useState<(typeof drivers)[number] | null>(null);
+  const [penaltyReason, setPenaltyReason] = useState<PenaltyReason>('Lost key');
+  const [penaltyAmount, setPenaltyAmount] = useState('2000');
+  const [penaltyNotice, setPenaltyNotice] = useState('');
   const [activeTransfer, setActiveTransfer] = useState<Transfer | null>(null);
   const [outcome, setOutcome] = useState<OutcomeType>('complete');
   const [incomingTransfer, setIncomingTransfer] = useState<Transfer | null>(null);
@@ -441,11 +492,15 @@ export default function App() {
   const incomingNotification = notifications.find((item) => item.incoming);
 
   useEffect(() => {
-    AsyncStorage.multiGet(['fleet-keys', 'fleet-notifications']).then((entries) => {
+    AsyncStorage.multiGet(['fleet-keys', 'fleet-notifications', 'fleet-driver-keys', 'fleet-penalties']).then((entries) => {
       const storedKeys = entries[0][1];
       const storedNotifications = entries[1][1];
+      const storedDriverKeys = entries[2][1];
+      const storedPenalties = entries[3][1];
       if (storedKeys) setKeys(JSON.parse(storedKeys) as KeyRecord[]);
       if (storedNotifications) setNotifications(JSON.parse(storedNotifications) as NotificationItem[]);
+      if (storedDriverKeys) setDriverKeys(JSON.parse(storedDriverKeys) as DriverKeyRecord[]);
+      if (storedPenalties) setPenalties(JSON.parse(storedPenalties) as PenaltyRecord[]);
       setHydrated(true);
     }).catch(() => setHydrated(true));
   }, []);
@@ -455,8 +510,10 @@ export default function App() {
     AsyncStorage.multiSet([
       ['fleet-keys', JSON.stringify(keys)],
       ['fleet-notifications', JSON.stringify(notifications)],
+      ['fleet-driver-keys', JSON.stringify(driverKeys)],
+      ['fleet-penalties', JSON.stringify(penalties)],
     ]).catch(() => undefined);
-  }, [hydrated, keys, notifications]);
+  }, [hydrated, keys, notifications, driverKeys, penalties]);
 
   useEffect(() => {
     if (view !== 'pending' || !activeTransfer || activeTransfer.status !== 'pending') return;
@@ -475,6 +532,69 @@ export default function App() {
     setView('tab');
     setSelectedKeyId(null);
     setSearch('');
+  };
+
+  const openAllotment = () => {
+    setSelectedDriverKeyId(null);
+    setSelectedDriver(null);
+    setPenaltyNotice('');
+    setView('allot-driver');
+  };
+
+  const confirmAllotment = () => {
+    if (!selectedDriverKeyId || !selectedDriver) return;
+    const item = driverKeys.find((driverKey) => driverKey.id === selectedDriverKeyId);
+    if (!item) return;
+    setDriverKeys((current) => current.map((driverKey) => driverKey.id === item.id ? {
+      ...driverKey,
+      driver: selectedDriver.name,
+      driverId: selectedDriver.driverId,
+      phone: selectedDriver.phone,
+      status: 'Allotted to driver',
+      allottedAt: nowLabel(),
+    } : driverKey));
+    setPenaltyNotice(`${item.keyId} is now allotted to ${selectedDriver.name}.`);
+    setView('tab');
+    setActiveTab('penalties');
+  };
+
+  const openPenaltyForm = (driverKeyId: string, reason: PenaltyReason) => {
+    const item = driverKeys.find((driverKey) => driverKey.id === driverKeyId);
+    if (!item || item.status !== 'Allotted to driver') return;
+    setSelectedDriverKeyId(driverKeyId);
+    setPenaltyReason(reason);
+    setPenaltyAmount('2000');
+    setView('penalty-create');
+  };
+
+  const issuePenalty = () => {
+    const item = selectedDriverKeyId ? driverKeys.find((driverKey) => driverKey.id === selectedDriverKeyId) : null;
+    const amount = Number(penaltyAmount.replace(/[^0-9]/g, '')) || 0;
+    if (!item || item.status !== 'Allotted to driver' || amount <= 0) {
+      Alert.alert('Enter a penalty amount', 'Add a valid amount before issuing the penalty.');
+      return;
+    }
+    setPenalties((current) => [{
+      id: `pen-${Date.now()}`,
+      driver: item.driver,
+      driverId: item.driverId,
+      vehicle: item.vehicle,
+      keyId: item.keyId,
+      reason: penaltyReason,
+      amount,
+      issuedAt: nowLabel(),
+      status: 'Active',
+    }, ...current]);
+    setDriverKeys((current) => current.map((driverKey) => driverKey.id === item.id ? { ...driverKey, status: 'Missing' } : driverKey));
+    setOutcome('penalty-issued');
+    setView('outcome');
+  };
+
+  const revertPenalty = (penalty: PenaltyRecord) => {
+    setPenalties((current) => current.map((item) => item.id === penalty.id ? { ...item, status: 'Reverted', revertedAt: nowLabel() } : item));
+    setDriverKeys((current) => current.map((item) => item.keyId === penalty.keyId ? { ...item, status: 'Recovered' } : item));
+    setOutcome('penalty-reverted');
+    setView('outcome');
   };
 
   const openKey = (keyId: string) => {
@@ -744,6 +864,59 @@ export default function App() {
     </>
   );
 
+  const renderPenalties = () => {
+    const activePenalties = penalties.filter((item) => item.status === 'Active');
+    const allottedDriverKeys = driverKeys.filter((item) => item.status === 'Allotted to driver');
+    return (
+      <>
+        <Header title="Penalties" subtitle="Driver key accountability" right={<Pressable style={styles.headerBell} onPress={openAllotment}><Icon name="plus" size={20} color={C.primary} /></Pressable>} />
+        <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 96 }]} showsVerticalScrollIndicator={false}>
+          {penaltyNotice ? <View style={styles.successNotice}><View style={styles.successNoticeIcon}><Icon name="check" size={16} color={C.success} /></View><Text style={styles.successNoticeText}>{penaltyNotice}</Text><Pressable onPress={() => setPenaltyNotice('')}><Icon name="x" size={15} color={C.mutedForeground} /></Pressable></View> : null}
+          <View style={styles.penaltyHero}><View><Text style={styles.eyebrow}>DRIVER ACCOUNTABILITY</Text><Text style={styles.penaltyHeroTitle}>Keep duplicate keys traceable.</Text><Text style={styles.penaltyHeroBody}>Allot keys to drivers and reverse penalties when recovery is confirmed.</Text></View><View style={styles.penaltyHeroIcon}><Icon name="shield" size={27} color={C.primaryForeground} /></View></View>
+          <View style={styles.penaltyStats}><View><Text style={styles.penaltyStatValue}>{allottedDriverKeys.length}</Text><Text style={styles.penaltyStatLabel}>Allotted to drivers</Text></View><View><Text style={[styles.penaltyStatValue, { color: C.destructive }]}>{activePenalties.length}</Text><Text style={styles.penaltyStatLabel}>Active penalties</Text></View><View><Text style={[styles.penaltyStatValue, { color: C.success }]}>{penalties.filter((item) => item.status === 'Reverted').length}</Text><Text style={styles.penaltyStatLabel}>Reverted</Text></View></View>
+          <SectionLabel action={<Pressable onPress={openAllotment}><Text style={styles.sectionAction}>+ Allot key</Text></Pressable>}>Duplicate keys</SectionLabel>
+          {driverKeys.filter((item) => item.status !== 'Available').map((item) => {
+            const linkedPenalty = penalties.find((penalty) => penalty.keyId === item.keyId && penalty.status === 'Active');
+            return <View key={item.id} style={styles.driverKeyCard}><View style={styles.driverKeyTop}><View style={styles.vehicleGlyph}><Icon name="key" size={19} color={C.primary} /></View><View style={styles.keyCardCopy}><Text style={styles.vehicleNumber}>{item.vehicle}</Text><Text style={styles.keyMeta}>{item.keyId} · Duplicate key</Text></View><Pill label={item.status} tone={item.status === 'Allotted to driver' ? 'blue' : item.status === 'Missing' ? 'red' : 'green'} dot /></View><View style={styles.driverDetailRow}><View style={styles.driverAvatar}><Text style={styles.driverAvatarText}>{initials(item.driver)}</Text></View><View style={styles.driverDetailCopy}><Text style={styles.driverDetailName}>{item.driver}</Text><Text style={styles.driverDetailMeta}>{item.driverId} · {item.phone}</Text></View><Text style={styles.driverAllottedAt}>{item.allottedAt ?? 'Recovered'}</Text></View>{item.status === 'Allotted to driver' ? <View style={styles.driverKeyActions}><Pressable style={styles.issueAction} onPress={() => openPenaltyForm(item.id, 'Lost key')}><Icon name="alert-triangle" size={14} color={C.destructive} /><Text style={styles.issueActionText}>Lost key</Text></Pressable><Pressable style={styles.recoveryAction} onPress={() => openPenaltyForm(item.id, 'Not found at vehicle recovery')}><Icon name="search" size={14} color={C.warning} /><Text style={styles.recoveryActionText}>Not found at recovery</Text></Pressable></View> : linkedPenalty ? null : <View style={styles.recoveredRow}><Icon name="check-circle" size={14} color={C.success} /><Text style={styles.recoveredText}>Key recovered · penalty can now be reviewed below</Text></View>}</View>;
+          })}
+          {driverKeys.filter((item) => item.status !== 'Available').length === 0 ? <EmptyState icon="key" title="No driver keys yet" body="Allot a duplicate key to start tracking driver custody." /> : null}
+          <SectionLabel>Penalty ledger</SectionLabel>
+          {penalties.map((item) => <View key={item.id} style={[styles.penaltyCard, item.status === 'Reverted' && styles.penaltyCardReverted]}><View style={styles.penaltyCardTop}><View style={[styles.penaltyIcon, { backgroundColor: item.status === 'Active' ? `${C.destructive}14` : `${C.success}14` }]}><Icon name={item.status === 'Active' ? 'alert-triangle' : 'check'} size={17} color={item.status === 'Active' ? C.destructive : C.success} /></View><View style={styles.penaltyCopy}><View style={styles.notificationTitleRow}><Text style={styles.notificationTitle}>{item.driver}</Text><Pill label={item.status === 'Active' ? 'Penalty active' : 'Reverted'} tone={item.status === 'Active' ? 'red' : 'green'} /></View><Text style={styles.penaltyReason}>{item.reason}</Text><Text style={styles.notificationBody}>{item.vehicle} · {item.keyId}</Text><Text style={styles.notificationTime}>{item.status === 'Active' ? `Issued ${item.issuedAt}` : `Reverted ${item.revertedAt}`}</Text></View><Text style={[styles.penaltyAmount, item.status === 'Reverted' && { color: C.success }]}>₹{item.amount.toLocaleString('en-IN')}</Text></View>{item.status === 'Active' ? <PrimaryButton label="Vehicle recovered · Revert penalty" icon="rotate-ccw" variant="secondary" onPress={() => revertPenalty(item)} /> : <View style={styles.revertedNotice}><Icon name="check-circle" size={14} color={C.success} /><Text style={styles.revertedNoticeText}>Penalty reversed after vehicle recovery.</Text></View>}</View>)}
+        </ScrollView>
+      </>
+    );
+  };
+
+  const renderAllotDriver = () => {
+    const availableKeys = driverKeys.filter((item) => item.status === 'Available');
+    return (
+      <>
+        <Header title="Allot duplicate key" subtitle="Record driver custody" onBack={() => { setView('tab'); setActiveTab('penalties'); }} />
+        <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
+          <View style={styles.flowIntro}><View style={styles.stepBadge}><Text style={styles.stepBadgeText}>1</Text></View><View><Text style={styles.flowTitle}>Select duplicate key</Text><Text style={styles.flowBody}>The status will change to allotted to driver.</Text></View></View>
+          {availableKeys.map((item) => <Pressable key={item.id} onPress={() => setSelectedDriverKeyId(item.id)} style={[styles.bulkKeyCard, selectedDriverKeyId === item.id && styles.bulkKeyCardSelected]}><View style={[styles.checkbox, selectedDriverKeyId === item.id && styles.checkboxSelected]}>{selectedDriverKeyId === item.id ? <Icon name="check" size={15} color={C.primaryForeground} /> : null}</View><View style={styles.vehicleGlyph}><Icon name="key" size={19} color={C.primary} /></View><View style={styles.keyCardCopy}><Text style={styles.vehicleNumber}>{item.vehicle}</Text><Text style={styles.keyMeta}>{item.keyId} · Duplicate key</Text></View><Pill label="Available" tone="green" /></Pressable>)}
+          {availableKeys.length === 0 ? <EmptyState icon="check-circle" title="All duplicate keys allotted" body="Recover or add another duplicate key before creating a new allotment." /> : null}
+          <View style={styles.flowIntro}><View style={styles.stepBadge}><Text style={styles.stepBadgeText}>2</Text></View><View><Text style={styles.flowTitle}>Select driver</Text><Text style={styles.flowBody}>Driver details will stay attached to the key record.</Text></View></View>
+          {drivers.map((driver) => <Pressable key={driver.driverId} onPress={() => setSelectedDriver(driver)} style={[styles.employeeCard, selectedDriver?.driverId === driver.driverId && styles.employeeCardSelected]}><View style={styles.avatar}><Text style={styles.avatarText}>{driver.initials}</Text></View><View style={styles.employeeCopy}><Text style={styles.employeeName}>{driver.name}</Text><Text style={styles.employeeMeta}>{driver.driverId} · {driver.phone}</Text></View>{selectedDriver?.driverId === driver.driverId ? <View style={styles.selectedCheck}><Icon name="check" size={14} color={C.primaryForeground} /></View> : null}</Pressable>)}
+          <View style={styles.stickyAction}><PrimaryButton label="Allot duplicate key" icon="user-check" onPress={confirmAllotment} disabled={!selectedDriverKeyId || !selectedDriver} /></View>
+        </ScrollView>
+      </>
+    );
+  };
+
+  const renderPenaltyCreate = () => {
+    const item = selectedDriverKeyId ? driverKeys.find((driverKey) => driverKey.id === selectedDriverKeyId) : null;
+    if (!item) return null;
+    return (
+      <>
+        <Header title="Issue penalty" subtitle="Driver key incident" onBack={() => { setView('tab'); setActiveTab('penalties'); }} />
+        <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
+          <View style={styles.penaltyCreateCard}><View style={styles.penaltyCreateIcon}><Icon name="alert-triangle" size={25} color={C.destructive} /></View><Text style={styles.confirmTitle}>Issue a driver penalty</Text><Text style={styles.confirmBody}>Record the incident now. You can revert this penalty once the vehicle and key are recovered.</Text><View style={styles.detailInfoCard}><InfoRow label="Driver" value={item.driver} icon="user" /><InfoRow label="Driver ID" value={item.driverId} icon="credit-card" /><InfoRow label="Vehicle" value={item.vehicle} icon="truck" /><InfoRow label="Duplicate key" value={item.keyId} icon="key" last /></View><Text style={styles.formFieldLabel}>Incident reason</Text><View style={styles.reasonGrid}><Pressable onPress={() => setPenaltyReason('Lost key')} style={[styles.reasonCard, penaltyReason === 'Lost key' && styles.reasonCardSelected]}><Icon name="key" size={16} color={penaltyReason === 'Lost key' ? C.primary : C.destructive} /><Text style={styles.reasonText}>Lost key</Text>{penaltyReason === 'Lost key' ? <Icon name="check" size={14} color={C.primary} /> : null}</Pressable><Pressable onPress={() => setPenaltyReason('Not found at vehicle recovery')} style={[styles.reasonCard, penaltyReason === 'Not found at vehicle recovery' && styles.reasonCardSelected]}><Icon name="search" size={16} color={penaltyReason === 'Not found at vehicle recovery' ? C.primary : C.warning} /><Text style={styles.reasonText}>Not found at recovery</Text>{penaltyReason === 'Not found at vehicle recovery' ? <Icon name="check" size={14} color={C.primary} /> : null}</Pressable></View><Text style={styles.formFieldLabel}>Penalty amount</Text><View style={styles.costInputWrap}><Text style={styles.rupee}>₹</Text><TextInput value={penaltyAmount} onChangeText={setPenaltyAmount} keyboardType="numeric" style={styles.costInput} /></View><Text style={styles.formNote}>The amount is configurable for your garage and can be reversed after recovery.</Text><PrimaryButton label="Give penalty" icon="alert-triangle" variant="danger" onPress={issuePenalty} /></View>
+        </ScrollView>
+      </>
+    );
+  };
+
   const renderProfile = () => (
     <>
       <Header title="Profile" subtitle="Your account and permissions" />
@@ -847,15 +1020,17 @@ export default function App() {
       cancelled: { icon: 'x', tone: 'amber', title: 'Transfer Cancelled', body: 'The transfer was cancelled before the receiver accepted it.', detail: 'The sender remains the custodian.' },
       opened: { icon: 'unlock', tone: 'blue', title: 'Job Card Opened Successfully', body: `${selectedKey?.vehicle ?? 'Vehicle'} is now inside the garage and ready for work.`, detail: 'Job card status · Open' },
       delivered: { icon: 'check', tone: 'green', title: 'Vehicle Delivered Successfully', body: `${selectedKey?.vehicle ?? 'Vehicle'} has been marked outside the garage.`, detail: 'The key was removed from My Keys.' },
+      'penalty-issued': { icon: 'alert-triangle', tone: 'red', title: 'Penalty Issued', body: `A penalty has been recorded for ${selectedDriverKeyId ? driverKeys.find((item) => item.id === selectedDriverKeyId)?.driver : 'the driver'}.`, detail: 'The penalty can be reverted after vehicle recovery.' },
+      'penalty-reverted': { icon: 'rotate-ccw', tone: 'green', title: 'Penalty Reverted', body: 'The vehicle and duplicate key have been marked as recovered.', detail: 'The driver penalty is no longer active.' },
     };
     const item = content[outcome];
     return (
       <>
-        <Header title="Result" subtitle="Action recorded" onBack={() => { setView('tab'); setActiveTab('home'); setIncomingTransfer(null); }} />
+        <Header title="Result" subtitle="Action recorded" onBack={() => { setView('tab'); setActiveTab(outcome === 'penalty-issued' || outcome === 'penalty-reverted' ? 'penalties' : 'home'); setIncomingTransfer(null); }} />
         <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
           <View style={styles.outcomeCard}><View style={[styles.outcomeIcon, { backgroundColor: `${toneColor(item.tone)}16` }]}><Icon name={item.icon} size={29} color={toneColor(item.tone)} /></View><Text style={styles.outcomeTitle}>{item.title}</Text><Text style={styles.outcomeBody}>{item.body}</Text><View style={styles.outcomeDetail}><Text style={styles.outcomeDetailLabel}>{outcome === 'complete' && incomingTransfer ? 'TRANSFER TIME' : 'STATUS'}</Text><Text style={styles.outcomeDetailValue}>{outcome === 'complete' && incomingTransfer ? `${nowLabel()} · Purpose · ${incomingTransfer.purpose}` : `${item.detail} · Purpose · ${incomingTransfer?.purpose ?? activeTransfer?.purpose ?? '—'}`}</Text></View></View>
-          <PrimaryButton label="Back to Home" icon="home" onPress={() => { setView('tab'); setActiveTab('home'); setIncomingTransfer(null); }} />
-          <PrimaryButton label="View Notifications" icon="bell" variant="ghost" onPress={() => { setView('tab'); setActiveTab('notifications'); setIncomingTransfer(null); }} />
+          <PrimaryButton label={outcome === 'penalty-issued' || outcome === 'penalty-reverted' ? 'Back to Penalties' : 'Back to Home'} icon={outcome === 'penalty-issued' || outcome === 'penalty-reverted' ? 'shield' : 'home'} onPress={() => { setView('tab'); setActiveTab(outcome === 'penalty-issued' || outcome === 'penalty-reverted' ? 'penalties' : 'home'); setIncomingTransfer(null); }} />
+          {outcome === 'penalty-issued' || outcome === 'penalty-reverted' ? null : <PrimaryButton label="View Notifications" icon="bell" variant="ghost" onPress={() => { setView('tab'); setActiveTab('notifications'); setIncomingTransfer(null); }} />}
         </ScrollView>
       </>
     );
@@ -969,18 +1144,21 @@ export default function App() {
     if (view === 'job-close') content = renderJobClose();
     if (view === 'missing') content = renderMissing();
     if (view === 'report') content = renderReport();
+    if (view === 'allot-driver') content = renderAllotDriver();
+    if (view === 'penalty-create') content = renderPenaltyCreate();
     return <View style={styles.app}><StatusBar barStyle="dark-content" backgroundColor={C.background} />{content}</View>;
   }
 
   return (
     <View style={styles.app}>
       <StatusBar barStyle="dark-content" backgroundColor={C.background} />
-      <View style={styles.content}>{activeTab === 'home' ? renderHome() : activeTab === 'scanner' ? renderScanner() : activeTab === 'keys' ? renderKeys() : activeTab === 'notifications' ? renderNotifications() : renderProfile()}</View>
+      <View style={styles.content}>{activeTab === 'home' ? renderHome() : activeTab === 'scanner' ? renderScanner() : activeTab === 'keys' ? renderKeys() : activeTab === 'notifications' ? renderNotifications() : activeTab === 'penalties' ? renderPenalties() : renderProfile()}</View>
       <View style={[styles.tabBar, { paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 8 }]}>
         <TabButton label="Home" icon="home" active={activeTab === 'home'} onPress={() => goTab('home')} />
         <TabButton label="Scanner" icon="maximize" active={activeTab === 'scanner'} onPress={() => goTab('scanner')} />
         <TabButton label="My Keys" icon="key" active={activeTab === 'keys'} onPress={() => goTab('keys')} />
         <TabButton label="Alerts" icon="bell" active={activeTab === 'notifications'} onPress={() => goTab('notifications')} badge={unreadCount} />
+        <TabButton label="Penalties" icon="shield" active={activeTab === 'penalties'} onPress={() => goTab('penalties')} badge={penalties.filter((item) => item.status === 'Active').length} />
         <TabButton label="Profile" icon="user" active={activeTab === 'profile'} onPress={() => goTab('profile')} />
       </View>
     </View>
@@ -1117,6 +1295,41 @@ const styles = StyleSheet.create({
   reportNumbers: { flexDirection: 'row', gap: 25, marginTop: 11 },
   reportNumber: { color: C.foreground, fontFamily: 'Inter_700Bold', fontSize: 16 },
   reportCaption: { color: C.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 2 },
+  successNotice: { backgroundColor: `${C.success}10`, borderRadius: 14, borderWidth: 1, borderColor: `${C.success}30`, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  successNoticeIcon: { width: 25, height: 25, borderRadius: 9, backgroundColor: `${C.success}18`, alignItems: 'center', justifyContent: 'center' },
+  successNoticeText: { flex: 1, color: C.success, fontFamily: 'Inter_600SemiBold', fontSize: 11, lineHeight: 15 },
+  penaltyHero: { backgroundColor: C.foreground, borderRadius: 22, padding: 20, minHeight: 142, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  penaltyHeroTitle: { color: C.card, fontFamily: 'Inter_700Bold', fontSize: 21, marginTop: 8, letterSpacing: -0.5, maxWidth: 215 },
+  penaltyHeroBody: { color: `${C.card}B8`, fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, marginTop: 6, maxWidth: 220 },
+  penaltyHeroIcon: { width: 58, height: 58, borderRadius: 19, backgroundColor: `${C.primary}CC`, alignItems: 'center', justifyContent: 'center' },
+  penaltyStats: { flexDirection: 'row', backgroundColor: C.card, borderRadius: 17, borderWidth: 1, borderColor: C.border, padding: 15, justifyContent: 'space-around' },
+  penaltyStatValue: { textAlign: 'center', color: C.primary, fontFamily: 'Inter_700Bold', fontSize: 21 },
+  penaltyStatLabel: { textAlign: 'center', color: C.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 3 },
+  driverKeyCard: { backgroundColor: C.card, borderRadius: 18, borderWidth: 1, borderColor: C.border, padding: 13, gap: 11 },
+  driverKeyTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  driverDetailRow: { backgroundColor: C.background, borderRadius: 13, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  driverAvatar: { width: 33, height: 33, borderRadius: 11, backgroundColor: `${C.primary}13`, alignItems: 'center', justifyContent: 'center' },
+  driverAvatarText: { color: C.primary, fontFamily: 'Inter_700Bold', fontSize: 10 },
+  driverDetailCopy: { flex: 1 },
+  driverDetailName: { color: C.foreground, fontFamily: 'Inter_700Bold', fontSize: 11 },
+  driverDetailMeta: { color: C.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 3 },
+  driverAllottedAt: { color: C.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 9 },
+  driverKeyActions: { flexDirection: 'row', gap: 8 },
+  issueAction: { flex: 1, borderRadius: 11, borderWidth: 1, borderColor: `${C.destructive}35`, backgroundColor: `${C.destructive}08`, minHeight: 36, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 5 },
+  issueActionText: { color: C.destructive, fontFamily: 'Inter_600SemiBold', fontSize: 10 },
+  recoveryAction: { flex: 1, borderRadius: 11, borderWidth: 1, borderColor: `${C.warning}35`, backgroundColor: `${C.warning}08`, minHeight: 36, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 5 },
+  recoveryActionText: { color: C.warning, fontFamily: 'Inter_600SemiBold', fontSize: 10 },
+  recoveredRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  recoveredText: { color: C.success, fontFamily: 'Inter_500Medium', fontSize: 10 },
+  penaltyCard: { backgroundColor: C.card, borderRadius: 18, borderWidth: 1, borderColor: `${C.destructive}32`, padding: 13, gap: 12 },
+  penaltyCardReverted: { borderColor: `${C.success}32` },
+  penaltyCardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  penaltyIcon: { width: 35, height: 35, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  penaltyCopy: { flex: 1 },
+  penaltyReason: { color: C.foreground, fontFamily: 'Inter_600SemiBold', fontSize: 10, marginTop: 7 },
+  penaltyAmount: { color: C.destructive, fontFamily: 'Inter_700Bold', fontSize: 15 },
+  revertedNotice: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  revertedNoticeText: { color: C.success, fontFamily: 'Inter_500Medium', fontSize: 10 },
   profileCard: { backgroundColor: C.card, borderRadius: 20, borderWidth: 1, borderColor: C.border, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatarLarge: { width: 58, height: 58, borderRadius: 19, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
   avatarLargeText: { color: C.primaryForeground, fontFamily: 'Inter_700Bold', fontSize: 19 },
@@ -1263,6 +1476,13 @@ const styles = StyleSheet.create({
   missingIcon: { width: 56, height: 56, borderRadius: 19, backgroundColor: `${C.destructive}13`, alignItems: 'center', justifyContent: 'center' },
   incidentFields: { alignSelf: 'stretch', backgroundColor: C.background, borderRadius: 14, paddingHorizontal: 12, marginTop: 4 },
   formNote: { color: C.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15, textAlign: 'center' },
+  penaltyCreateCard: { backgroundColor: C.card, borderRadius: 22, borderWidth: 1, borderColor: C.border, padding: 20, alignItems: 'center', gap: 12 },
+  penaltyCreateIcon: { width: 56, height: 56, borderRadius: 19, backgroundColor: `${C.destructive}13`, alignItems: 'center', justifyContent: 'center' },
+  formFieldLabel: { alignSelf: 'stretch', color: C.foreground, fontFamily: 'Inter_700Bold', fontSize: 11, marginTop: 3 },
+  reasonGrid: { alignSelf: 'stretch', gap: 8 },
+  reasonCard: { minHeight: 44, borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.background, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  reasonCardSelected: { borderColor: C.primary, backgroundColor: `${C.primary}08` },
+  reasonText: { flex: 1, color: C.foreground, fontFamily: 'Inter_600SemiBold', fontSize: 11 },
   reportHero: { backgroundColor: C.primary, borderRadius: 22, padding: 20, minHeight: 132, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   reportHeroTitle: { color: C.primaryForeground, fontFamily: 'Inter_700Bold', fontSize: 22, marginTop: 8, letterSpacing: -0.5 },
   reportHeroBody: { color: `${C.primaryForeground}C7`, fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, marginTop: 6, maxWidth: 240 },
