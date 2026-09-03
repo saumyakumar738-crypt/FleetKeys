@@ -43,6 +43,7 @@ Fleet Key Control is a mobile-first fleet garage app for fast, accountable vehic
 - Single and bulk transfer flows with receiver verification, acceptance, rejection, cancellation, expiry, and countdown states
 - Notifications, missing-key reporting entry point, profile, and manager KPI/financial-impact reporting
 - Penalties tab for duplicate-key allotment to drivers, driver detail visibility, lost-key/recovery-missing penalties, and recovery-based penalty reversal
+- Compliance leaderboard ranking garage workers by fewest missing keys, with tied ranks and live counts from key records and active driver penalties
 
 ## User preferences
 

@@ -867,6 +867,22 @@ export default function App() {
   const renderPenalties = () => {
     const activePenalties = penalties.filter((item) => item.status === 'Active');
     const allottedDriverKeys = driverKeys.filter((item) => item.status === 'Allotted to driver');
+    const workerSeed = [
+      { name: CURRENT_USER, role: 'Garage employee', initials: initials(CURRENT_USER) },
+      ...employees.map((item) => ({ name: item.name, role: item.role, initials: item.initials })),
+      ...drivers.map((item) => ({ name: item.name, role: 'Driver', initials: item.initials })),
+    ].filter((item, index, list) => list.findIndex((candidate) => candidate.name === item.name) === index);
+    const leaderboard = workerSeed
+      .map((worker) => {
+        const missingKeyIds = new Set([
+          ...keys.filter((item) => item.transferStatus === 'Missing' && item.custodian === worker.name).map((item) => item.keyId),
+          ...driverKeys.filter((item) => item.status === 'Missing' && item.driver === worker.name).map((item) => item.keyId),
+          ...activePenalties.filter((item) => item.driver === worker.name).map((item) => item.keyId),
+        ]);
+        return { ...worker, missingKeys: missingKeyIds.size };
+      })
+      .sort((a, b) => a.missingKeys - b.missingKeys || a.name.localeCompare(b.name))
+      .map((worker, index, list) => ({ ...worker, rank: list.findIndex((candidate) => candidate.missingKeys === worker.missingKeys) + 1 }));
     return (
       <>
         <Header title="Penalties" subtitle="Driver key accountability" right={<Pressable style={styles.headerBell} onPress={openAllotment}><Icon name="plus" size={20} color={C.primary} /></Pressable>} />
@@ -874,6 +890,8 @@ export default function App() {
           {penaltyNotice ? <View style={styles.successNotice}><View style={styles.successNoticeIcon}><Icon name="check" size={16} color={C.success} /></View><Text style={styles.successNoticeText}>{penaltyNotice}</Text><Pressable onPress={() => setPenaltyNotice('')}><Icon name="x" size={15} color={C.mutedForeground} /></Pressable></View> : null}
           <View style={styles.penaltyHero}><View><Text style={styles.eyebrow}>DRIVER ACCOUNTABILITY</Text><Text style={styles.penaltyHeroTitle}>Keep duplicate keys traceable.</Text><Text style={styles.penaltyHeroBody}>Allot keys to drivers and reverse penalties when recovery is confirmed.</Text></View><View style={styles.penaltyHeroIcon}><Icon name="shield" size={27} color={C.primaryForeground} /></View></View>
           <View style={styles.penaltyStats}><View><Text style={styles.penaltyStatValue}>{allottedDriverKeys.length}</Text><Text style={styles.penaltyStatLabel}>Allotted to drivers</Text></View><View><Text style={[styles.penaltyStatValue, { color: C.destructive }]}>{activePenalties.length}</Text><Text style={styles.penaltyStatLabel}>Active penalties</Text></View><View><Text style={[styles.penaltyStatValue, { color: C.success }]}>{penalties.filter((item) => item.status === 'Reverted').length}</Text><Text style={styles.penaltyStatLabel}>Reverted</Text></View></View>
+          <SectionLabel>Compliance leaderboard</SectionLabel>
+          <View style={styles.leaderboardCard}><View style={styles.leaderboardHeader}><View><Text style={styles.leaderboardTitle}>Fewest missing keys</Text><Text style={styles.leaderboardSubtitle}>Lower count means a stronger compliance score</Text></View><View style={styles.leaderboardTrophy}><Icon name="award" size={18} color={C.warning} /></View></View>{leaderboard.map((worker) => <View key={`leader-${worker.name}`} style={styles.leaderboardRow}><View style={[styles.rankBadge, worker.rank <= 3 && styles.rankBadgeTop]}><Text style={[styles.rankText, worker.rank <= 3 && styles.rankTextTop]}>{worker.rank}</Text></View><View style={styles.leaderboardAvatar}><Text style={styles.leaderboardAvatarText}>{worker.initials}</Text></View><View style={styles.leaderboardWorker}><Text style={styles.leaderboardWorkerName}>{worker.name}{worker.name === CURRENT_USER ? ' · You' : ''}</Text><Text style={styles.leaderboardWorkerRole}>{worker.role}</Text></View><View style={styles.missingScore}><Text style={[styles.missingScoreValue, worker.missingKeys > 0 && { color: C.destructive }]}>{worker.missingKeys}</Text><Text style={styles.missingScoreLabel}>{worker.missingKeys === 1 ? 'missing key' : 'missing keys'}</Text></View></View>)}</View>
           <SectionLabel action={<Pressable onPress={openAllotment}><Text style={styles.sectionAction}>+ Allot key</Text></Pressable>}>Duplicate keys</SectionLabel>
           {driverKeys.filter((item) => item.status !== 'Available').map((item) => {
             const linkedPenalty = penalties.find((penalty) => penalty.keyId === item.keyId && penalty.status === 'Active');
@@ -1328,6 +1346,24 @@ const styles = StyleSheet.create({
   penaltyCopy: { flex: 1 },
   penaltyReason: { color: C.foreground, fontFamily: 'Inter_600SemiBold', fontSize: 10, marginTop: 7 },
   penaltyAmount: { color: C.destructive, fontFamily: 'Inter_700Bold', fontSize: 15 },
+  leaderboardCard: { backgroundColor: C.card, borderRadius: 18, borderWidth: 1, borderColor: C.border, padding: 14, gap: 4 },
+  leaderboardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 8 },
+  leaderboardTitle: { color: C.foreground, fontFamily: 'Inter_700Bold', fontSize: 13 },
+  leaderboardSubtitle: { color: C.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 3 },
+  leaderboardTrophy: { width: 34, height: 34, borderRadius: 11, backgroundColor: `${C.warning}16`, alignItems: 'center', justifyContent: 'center' },
+  leaderboardRow: { minHeight: 52, borderTopWidth: 1, borderTopColor: C.border, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rankBadge: { width: 23, height: 23, borderRadius: 8, backgroundColor: C.background, alignItems: 'center', justifyContent: 'center' },
+  rankBadgeTop: { backgroundColor: `${C.warning}18` },
+  rankText: { color: C.mutedForeground, fontFamily: 'Inter_700Bold', fontSize: 11 },
+  rankTextTop: { color: C.warning },
+  leaderboardAvatar: { width: 31, height: 31, borderRadius: 10, backgroundColor: `${C.primary}12`, alignItems: 'center', justifyContent: 'center' },
+  leaderboardAvatarText: { color: C.primary, fontFamily: 'Inter_700Bold', fontSize: 9 },
+  leaderboardWorker: { flex: 1 },
+  leaderboardWorkerName: { color: C.foreground, fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  leaderboardWorkerRole: { color: C.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 2 },
+  missingScore: { alignItems: 'flex-end', minWidth: 57 },
+  missingScoreValue: { color: C.success, fontFamily: 'Inter_700Bold', fontSize: 16 },
+  missingScoreLabel: { color: C.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 8, marginTop: 1 },
   revertedNotice: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   revertedNoticeText: { color: C.success, fontFamily: 'Inter_500Medium', fontSize: 10 },
   profileCard: { backgroundColor: C.card, borderRadius: 20, borderWidth: 1, borderColor: C.border, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
