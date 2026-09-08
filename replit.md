@@ -13,7 +13,7 @@ Fleet Key Control is a mobile-first fleet garage app for fast, accountable vehic
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
+- pnpm workspaces, Node.js 24, TypeScript 6, Expo SDK 57 / React Native 0.86
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
 - Validation: Zod (`zod/v4`), `drizzle-zod`
