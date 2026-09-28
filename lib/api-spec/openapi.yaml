@@ -1,22 +1,22 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Fleet Key Control API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: fleet
+    description: Fleet key custody and compliance operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +24,413 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /fleet/keys:
+    get:
+      operationId: listFleetKeys
+      tags: [fleet]
+      summary: List keys held by the current user
+      parameters:
+        - $ref: "#/components/parameters/FleetUserId"
+      responses:
+        "200":
+          description: Keys
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetKeyList"
+  /fleet/transfers:
+    get:
+      operationId: listFleetTransfers
+      tags: [fleet]
+      summary: List transfers involving the current user
+      parameters:
+        - $ref: "#/components/parameters/FleetUserId"
+      responses:
+        "200":
+          description: Transfers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetTransferList"
+    post:
+      operationId: createFleetTransfer
+      tags: [fleet]
+      summary: Start a key transfer
+      parameters:
+        - $ref: "#/components/parameters/FleetUserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransferInput"
+      responses:
+        "201":
+          description: Transfer created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetTransfer"
+  /fleet/transfers/{id}/accept:
+    post:
+      operationId: acceptFleetTransfer
+      tags: [fleet]
+      summary: Accept a pending key transfer
+      parameters:
+        - $ref: "#/components/parameters/FleetUserId"
+        - $ref: "#/components/parameters/TransferId"
+      responses:
+        "200":
+          description: Accepted transfer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetTransfer"
+  /fleet/transfers/{id}/reject:
+    post:
+      operationId: rejectFleetTransfer
+      tags: [fleet]
+      summary: Reject a pending key transfer
+      parameters:
+        - $ref: "#/components/parameters/FleetUserId"
+        - $ref: "#/components/parameters/TransferId"
+      responses:
+        "200":
+          description: Rejected transfer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetTransfer"
+  /fleet/transfers/{id}/cancel:
+    post:
+      operationId: cancelFleetTransfer
+      tags: [fleet]
+      summary: Cancel a pending key transfer
+      parameters:
+        - $ref: "#/components/parameters/FleetUserId"
+        - $ref: "#/components/parameters/TransferId"
+      responses:
+        "200":
+          description: Cancelled transfer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetTransfer"
+  /fleet/driver-keys:
+    get:
+      operationId: listFleetDriverKeys
+      tags: [fleet]
+      summary: List duplicate driver keys
+      parameters:
+        - $ref: "#/components/parameters/FleetUserId"
+      responses:
+        "200":
+          description: Driver keys
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetDriverKeyList"
+  /fleet/driver-keys/{id}/allot:
+    post:
+      operationId: allotFleetDriverKey
+      tags: [fleet]
+      summary: Allot a duplicate key to a driver
+      parameters:
+        - $ref: "#/components/parameters/FleetUserId"
+        - $ref: "#/components/parameters/DriverKeyId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AllotDriverKeyInput"
+      responses:
+        "200":
+          description: Allotted driver key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetDriverKey"
+  /fleet/penalties:
+    get:
+      operationId: listFleetPenalties
+      tags: [fleet]
+      summary: List penalties for the current user
+      parameters:
+        - $ref: "#/components/parameters/FleetUserId"
+      responses:
+        "200":
+          description: Penalties
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetPenaltyList"
+    post:
+      operationId: issueFleetPenalty
+      tags: [fleet]
+      summary: Issue a driver key penalty
+      parameters:
+        - $ref: "#/components/parameters/FleetUserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssuePenaltyInput"
+      responses:
+        "201":
+          description: Issued penalty
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetPenalty"
+  /fleet/penalties/{id}/revert:
+    post:
+      operationId: revertFleetPenalty
+      tags: [fleet]
+      summary: Revert an active penalty after recovery
+      parameters:
+        - $ref: "#/components/parameters/FleetUserId"
+        - $ref: "#/components/parameters/PenaltyId"
+      responses:
+        "200":
+          description: Reverted penalty
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetPenalty"
+  /fleet/leaderboard:
+    get:
+      operationId: listFleetLeaderboard
+      tags: [fleet]
+      summary: List compliance leaderboard scores
+      parameters:
+        - $ref: "#/components/parameters/FleetUserId"
+      responses:
+        "200":
+          description: Leaderboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetLeaderboardList"
+  /fleet/summary:
+    get:
+      operationId: getFleetSummary
+      tags: [fleet]
+      summary: Get dashboard counts and leaderboard
+      parameters:
+        - $ref: "#/components/parameters/FleetUserId"
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetSummary"
 components:
+  parameters:
+    FleetUserId:
+      name: X-Fleet-User-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    TransferId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    DriverKeyId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    PenaltyId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
   schemas:
     HealthStatus:
       type: object
       properties:
         status:
           type: string
+      required: [status]
+    TransferPurpose:
+      type: string
+      enum: [Recovery, Repair, Parking]
+    TransferStatus:
+      type: string
+      enum: [pending, accepted, rejected, expired, cancelled]
+    FleetTransfer:
+      type: object
       required:
+        - id
+        - keyIds
+        - recipientId
+        - recipientName
+        - vehicle
+        - senderId
+        - senderName
+        - purpose
+        - startedAt
+        - expiresAt
+        - kind
         - status
-
+      properties:
+        id: { type: string }
+        keyIds:
+          type: array
+          items: { type: string }
+        recipientId: { type: string }
+        recipientName: { type: string }
+        vehicle: { type: string }
+        senderId: { type: string }
+        senderName: { type: string }
+        purpose: { $ref: "#/components/schemas/TransferPurpose" }
+        startedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        kind: { type: string, enum: [single, bulk] }
+        status: { $ref: "#/components/schemas/TransferStatus" }
+    TransferInput:
+      type: object
+      required: [recipientId, keyIds, purpose]
+      properties:
+        recipientId: { type: string, minLength: 1 }
+        keyIds:
+          type: array
+          minItems: 1
+          items: { type: string, minLength: 1 }
+        purpose: { $ref: "#/components/schemas/TransferPurpose" }
+        kind: { type: string, enum: [single, bulk], default: single }
+    KeyHistoryEvent:
+      type: object
+      required: [title, detail, occurredAt, tone]
+      properties:
+        title: { type: string }
+        detail: { type: string }
+        occurredAt: { type: string, format: date-time }
+        tone: { type: string, enum: [blue, green, amber, red, gray] }
+    FleetKey:
+      type: object
+      required:
+        - id
+        - vehicle
+        - keyId
+        - department
+        - custodianId
+        - custodianName
+        - receivedAt
+        - jobCardStatus
+        - vehicleStatus
+        - transferStatus
+        - history
+      properties:
+        id: { type: string }
+        vehicle: { type: string }
+        keyId: { type: string }
+        department: { type: string }
+        custodianId: { type: string }
+        custodianName: { type: string }
+        receivedAt: { type: string, format: date-time }
+        jobCardStatus: { type: string, enum: [open, closed] }
+        vehicleStatus: { type: string, enum: [inside_garage, outside_garage] }
+        transferStatus: { type: string, enum: [assigned, transfer_pending, missing] }
+        history:
+          type: array
+          items: { $ref: "#/components/schemas/KeyHistoryEvent" }
+    FleetDriverKey:
+      type: object
+      required: [id, vehicle, keyId, driverId, driverName, phone, status]
+      properties:
+        id: { type: string }
+        vehicle: { type: string }
+        keyId: { type: string }
+        driverId: { type: string }
+        driverName: { type: string }
+        phone: { type: string }
+        status: { type: string, enum: [available, allotted, missing, recovered] }
+        allottedAt:
+          type: [string, "null"]
+          format: date-time
+    FleetPenalty:
+      type: object
+      required:
+        - id
+        - driverKeyId
+        - driverId
+        - driverName
+        - vehicle
+        - keyId
+        - reason
+        - amount
+        - issuedAt
+        - status
+      properties:
+        id: { type: string }
+        driverKeyId: { type: string }
+        driverId: { type: string }
+        driverName: { type: string }
+        vehicle: { type: string }
+        keyId: { type: string }
+        reason: { type: string, enum: [lost_key, not_found_at_vehicle_recovery] }
+        amount: { type: number }
+        issuedAt: { type: string, format: date-time }
+        status: { type: string, enum: [active, reverted] }
+        revertedAt:
+          type: [string, "null"]
+          format: date-time
+    FleetLeaderboardEntry:
+      type: object
+      required: [driverId, driverName, activePenalties, score, rank]
+      properties:
+        driverId: { type: string }
+        driverName: { type: string }
+        activePenalties: { type: number }
+        score: { type: number }
+        rank: { type: number }
+    FleetSummary:
+      type: object
+      required: [myKeys, pendingTransfers, missingKeys, activePenalties, leaderboard]
+      properties:
+        myKeys: { type: number }
+        pendingTransfers: { type: number }
+        missingKeys: { type: number }
+        activePenalties: { type: number }
+        leaderboard:
+          type: array
+          items: { $ref: "#/components/schemas/FleetLeaderboardEntry" }
+    AllotDriverKeyInput:
+      type: object
+      required: [driverId]
+      properties:
+        driverId: { type: string, minLength: 1 }
+    IssuePenaltyInput:
+      type: object
+      required: [driverKeyId, reason, amount]
+      properties:
+        driverKeyId: { type: string, minLength: 1 }
+        reason:
+          type: string
+          enum: [lost_key, not_found_at_vehicle_recovery]
+        amount: { type: number, exclusiveMinimum: 0 }
+    FleetKeyList:
+      type: array
+      items: { $ref: "#/components/schemas/FleetKey" }
+    FleetTransferList:
+      type: array
+      items: { $ref: "#/components/schemas/FleetTransfer" }
+    FleetDriverKeyList:
+      type: array
+      items: { $ref: "#/components/schemas/FleetDriverKey" }
+    FleetPenaltyList:
+      type: array
+      items: { $ref: "#/components/schemas/FleetPenalty" }
+    FleetLeaderboardList:
+      type: array
+      items: { $ref: "#/components/schemas/FleetLeaderboardEntry" }

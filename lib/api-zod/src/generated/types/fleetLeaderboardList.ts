@@ -5,7 +5,6 @@
  * Fleet Key Control API
  * OpenAPI spec version: 0.1.0
  */
+import type { FleetLeaderboardEntry } from './fleetLeaderboardEntry';
 
-export interface HealthStatus {
-  status: string;
-}
+export type FleetLeaderboardList = FleetLeaderboardEntry[];

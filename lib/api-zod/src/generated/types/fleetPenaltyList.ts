@@ -5,7 +5,6 @@
  * Fleet Key Control API
  * OpenAPI spec version: 0.1.0
  */
+import type { FleetPenalty } from './fleetPenalty';
 
-export interface HealthStatus {
-  status: string;
-}
+export type FleetPenaltyList = FleetPenalty[];

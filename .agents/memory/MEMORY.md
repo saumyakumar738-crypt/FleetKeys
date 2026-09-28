@@ -1,0 +1,1 @@
+- [Supabase schema setup](supabase-schema-setup.md) — the attached Supabase connector is REST-only; schema DDL must be applied through a separate approved SQL path.

@@ -5,7 +5,6 @@
  * Fleet Key Control API
  * OpenAPI spec version: 0.1.0
  */
+import type { FleetDriverKey } from './fleetDriverKey';
 
-export interface HealthStatus {
-  status: string;
-}
+export type FleetDriverKeyList = FleetDriverKey[];
